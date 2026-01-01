@@ -2,6 +2,8 @@ import express from "express";
 import jwt from "jsonwebtoken";
 import { createProxyMiddleware } from "http-proxy-middleware";
 import pg from "pg";
+import boeAuctionsRouter from "./src/routes/api/v1/boe-auctions.js";
+import pharmaMedicinesRouter from "./src/routes/api/v1/pharma-medicines.js";
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -144,6 +146,10 @@ app.get(
     res.json({ message: "Pro plan access granted" });
   }
 );
+
+// --- API v1 (read-only data exposition) ---
+app.use("/api/v1", authMiddleware, boeAuctionsRouter);
+app.use("/api/v1", authMiddleware, pharmaMedicinesRouter);
 
 // --- PROTECTED ROUTES ---
 app.use(
