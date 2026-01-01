@@ -14,17 +14,28 @@ if (!JWT_SECRET) {
 
 app.use(express.json());
 
-// --- LOGIN (temporary hardcoded user) ---
+// Temporary in-memory users with roles/plans
+const USERS = {
+  admin: { password: "admin", role: "admin", plan: "pro" },
+  user: { password: "user", role: "user", plan: "free" },
+  trial: { password: "trial", role: "trial", plan: "free" },
+};
+
+// --- LOGIN (temporary hardcoded users) ---
 app.post("/login", (req, res) => {
   const { username, password } = req.body;
 
-  // TEMPORARY: replace later with DB/users
-  if (username !== "admin" || password !== "admin") {
+  const user = USERS[username];
+  if (!user || user.password !== password) {
     return res.status(401).json({ error: "Invalid credentials" });
   }
 
   const token = jwt.sign(
-    { sub: username, role: "admin" },
+    {
+      sub: username,
+      role: user.role,
+      plan: user.plan,
+    },
     JWT_SECRET,
     { expiresIn: JWT_EXPIRES_IN }
   );
@@ -49,6 +60,38 @@ function authMiddleware(req, res, next) {
     return res.status(401).json({ error: "Invalid or expired token" });
   }
 }
+
+function requireRole(roles = []) {
+  return (req, res, next) => {
+    if (!roles.includes(req.user.role)) {
+      return res.status(403).json({ error: "Forbidden: role not allowed" });
+    }
+    next();
+  };
+}
+
+function requirePlan(plans = []) {
+  return (req, res, next) => {
+    if (!plans.includes(req.user.plan)) {
+      return res.status(403).json({ error: "Forbidden: plan not allowed" });
+    }
+    next();
+  };
+}
+
+// --- Example protected APIs ---
+app.get("/api/admin", authMiddleware, requireRole(["admin"]), (req, res) => {
+  res.json({ message: "Admin access granted" });
+});
+
+app.get(
+  "/api/pro",
+  authMiddleware,
+  requirePlan(["pro"]),
+  (req, res) => {
+    res.json({ message: "Pro plan access granted" });
+  }
+);
 
 // --- PROTECTED ROUTES ---
 app.use(
